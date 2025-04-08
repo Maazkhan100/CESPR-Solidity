@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "./ISolarPanelContract.sol";
+import "./SolarPanel.sol";
 
 contract UtilityContract {
 
@@ -16,7 +16,7 @@ contract UtilityContract {
     event PeriodicSummaryCreated(string summaryID, uint balance, uint transactionCount, address[] activeContributors, string date);
 
     address public owner;
-    ISolarPanelContract public solarPanelContract;
+    SolarPanel public solarPanelContract;
 
     mapping(string => Summary) public summaries;
 
@@ -27,7 +27,7 @@ contract UtilityContract {
 
     constructor(address _solarPanelContract) {
         owner = msg.sender;
-        solarPanelContract = ISolarPanelContract(_solarPanelContract);
+        solarPanelContract = SolarPanel(_solarPanelContract);
     }
 
     function createPeriodicSummary(string memory summaryID, string memory date) 

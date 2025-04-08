@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "./ISolarPanelContract.sol";
-
-contract SolarPanel is ISolarPanelContract {
+contract SolarPanel {
     
     struct SolarPanelData {
         string id;
@@ -23,18 +21,6 @@ contract SolarPanel is ISolarPanelContract {
         string status;
         string purchaseDate;
         string eolDate;
-    }
-
-    struct Agreement {
-        string id;
-        address manufacturer;
-        address prosumer;
-        address recycler;
-        uint recyclingCost;
-        string warrantyClaim;
-        string purchaseDate;
-        string eolDate;
-        string solarPanelId;
     }
 
     struct EscrowAccount {
@@ -57,22 +43,22 @@ contract SolarPanel is ISolarPanelContract {
         bool isVerified;
     }
 
-    struct AcknowledgeTransaction {
+    /*struct AcknowledgeTransaction {
         string transactionId;
         string panelId;
         string description;
         address prosumer;
         uint amount;
         string date;
-    }
+    }*/
 
-    struct AcknowledgeReceipt {
+    /*struct AcknowledgeReceipt {
         string transactionId;
         string panelId;
         string description;
         address recycler;
         string date;
-    }
+    }*/
 
     struct PanelTransactionBeforeWarranty {
         string transactionID;
@@ -103,10 +89,9 @@ contract SolarPanel is ISolarPanelContract {
     event TransactionVerified(string transactionID, bool isVerified, string status);
 
     mapping(string => SolarPanelData) public solarPanels;
-    mapping(string => Agreement) public agreements;
     mapping(string => EscrowAccount) public escrowAccounts;
-    mapping(string => AcknowledgeTransaction) public acknowledgmentTransactions;
-    mapping(string => AcknowledgeReceipt) public acknowledgmentReceipts;
+    // mapping(string => AcknowledgeTransaction) public acknowledgmentTransactions;
+    // mapping(string => AcknowledgeReceipt) public acknowledgmentReceipts;
     mapping(string => PanelTransactionBeforeWarranty) public panelFailureTransactions;
 
     address public utility = 0x5B38Da6a701c568545dCfcB03FcB875f56beddC4;
@@ -123,7 +108,10 @@ contract SolarPanel is ISolarPanelContract {
         string memory purchaseDate,
         string memory eolDate
     ) public {
+        require(bytes(id).length > 0, "Solar panel ID required");
         require(bytes(solarPanels[id].id).length == 0, "Solar panel already exists");
+        require(recyclingCost > 0, "Recycling cost must be positive");
+        require(prosumer != address(0) && recycler != address(0), "Invalid addresses");
 
         SolarPanelData storage panel = solarPanels[id];
 
@@ -141,38 +129,6 @@ contract SolarPanel is ISolarPanelContract {
         panel.remainingContributors = 0;
         panel.acknowledgeTransportFee = false;
         panel.acknowledgeRecyclerFee = false;
-    }
-
-    // Agreement Creation
-    function createAgreement(
-        string memory agreementId,
-        string memory panelId,
-        address prosumer,
-        address recycler,
-        uint recyclingCost,
-        string memory warrantyClaim,
-        string memory purchaseDate,
-        string memory eolDate
-    ) public {
-        require(bytes(agreementId).length > 0, "Agreement ID required");
-        require(bytes(panelId).length > 0, "Solar panel ID required");
-        require(bytes(agreements[agreementId].id).length == 0, "Agreement already exists");
-        require(recyclingCost > 0, "Recycling cost must be positive");
-        require(prosumer != address(0) && recycler != address(0), "Invalid addresses");
-        agreements[agreementId] = Agreement({
-            id: agreementId,
-            manufacturer: msg.sender,
-            prosumer: prosumer,
-            recycler: recycler,
-            recyclingCost: recyclingCost,
-            warrantyClaim: warrantyClaim,
-            purchaseDate: purchaseDate,
-            eolDate: eolDate,
-            solarPanelId: panelId
-        });
-
-        // Automatically register the associated solar panel
-        registerPanel(panelId, prosumer, recycler, recyclingCost, warrantyClaim, purchaseDate, eolDate);
     }
 
     // Contribute Recycling Cost
@@ -215,7 +171,7 @@ contract SolarPanel is ISolarPanelContract {
         solarPanels[panelID].metadata.status = "failed";
     }
 
-    function acknowledgeTransportFee(string memory panelId, string memory transactionId, uint amount, string memory date) public {
+    function acknowledgeTransportFee(string memory panelId, /*string memory transactionId,*/ uint amount/*, string memory date*/) public {
         SolarPanelData storage panel = solarPanels[panelId];
         
         // Ensure the panel exists
@@ -231,7 +187,7 @@ contract SolarPanel is ISolarPanelContract {
 
         require(!panel.acknowledgeTransportFee, "Transport fee already acknowledged");
 
-        require(bytes(acknowledgmentTransactions[transactionId].transactionId).length == 0, "Transaction ID already exists");
+        // require(bytes(acknowledgmentTransactions[transactionId].transactionId).length == 0, "Transaction ID already exists");
 
         require(amount > 0, "Transport fee amount must be greater than zero");
 
@@ -243,17 +199,18 @@ contract SolarPanel is ISolarPanelContract {
         account.balance -= amount;
 
         // Create a description for the acknowledgment
-        string memory description = string(abi.encodePacked("Transport fee acknowledged for panel ", panelId));
+        // string memory description = string(abi.encodePacked("Transport fee acknowledged for panel ", panelId));
 
         // Store the transaction
-        acknowledgmentTransactions[transactionId] = AcknowledgeTransaction({
-            transactionId: transactionId,
-            panelId: panelId,
-            description: description,
-            prosumer: msg.sender,
-            amount: amount,
-            date: date
-        });
+        // Commented out as not required at this stage, not used, and not mentioned in paper.
+        // acknowledgmentTransactions[transactionId] = AcknowledgeTransaction({
+        //     transactionId: transactionId,
+        //     panelId: panelId,
+        //     description: description,
+        //     prosumer: msg.sender,
+        //     amount: amount,
+        //     date: date
+        // });
 
         panel.acknowledgeTransportFee = true;
     }
@@ -283,11 +240,11 @@ contract SolarPanel is ISolarPanelContract {
     }
 
     // Function for acknowledging receipt of panel
-    function acknowledgeReceipt(string memory panelId, string memory transactionId, string memory date) public returns (string memory) {
+    function acknowledgeReceipt(string memory panelId/*, string memory transactionId, string memory date*/) public returns (string memory) {
         // Ensure the panel exists and retrieve status and recycler
         require(bytes(solarPanels[panelId].id).length > 0, "Solar panel does not exist");
 
-        require(bytes(acknowledgmentReceipts[transactionId].transactionId).length == 0, "Transaction ID already exists");
+        // require(bytes(acknowledgmentReceipts[transactionId].transactionId).length == 0, "Transaction ID already exists");
 
         string memory status = string(abi.encodePacked(solarPanels[panelId].metadata.status));
         address recycler = solarPanels[panelId].recyclingCompany;
@@ -299,16 +256,17 @@ contract SolarPanel is ISolarPanelContract {
         require(recycler == msg.sender, "Only the assigned recycler can acknowledge receipt");
 
         // Create description
-        string memory description = string(abi.encodePacked("Panel received for recycling: ", panelId));
+        // string memory description = string(abi.encodePacked("Panel received for recycling: ", panelId));
 
         // Store acknowledgment in the mapping
-        acknowledgmentReceipts[transactionId] = AcknowledgeReceipt({
-            transactionId: transactionId,
-            panelId: panelId,
-            description: description,
-            recycler: msg.sender,
-            date: date
-        });
+        // To optimize the code size and this is not required at this stage nor mentioned in paper. So, comment out.
+        // acknowledgmentReceipts[transactionId] = AcknowledgeReceipt({
+        //     transactionId: transactionId,
+        //     panelId: panelId,
+        //     description: description,
+        //     recycler: msg.sender,
+        //     date: date
+        // });
 
         // Update status to "Received by Recycler"
         solarPanels[panelId].metadata.status = "Received by Recycler";
@@ -320,7 +278,7 @@ contract SolarPanel is ISolarPanelContract {
     }
 
     // Function for acknowledging payment for recycling
-    function acknowledgePayment(string memory panelId, string memory transactionId, uint amount, string memory date) public {
+    function acknowledgePayment(string memory panelId, /*string memory transactionId,*/ uint amount/*, string memory date*/) public {
         SolarPanelData storage panel = solarPanels[panelId];
 
         // Ensure the panel exists and retrieve status and recycler
@@ -328,7 +286,7 @@ contract SolarPanel is ISolarPanelContract {
 
         require(!panel.acknowledgeRecyclerFee, "Recycler fee already acknowledged");
 
-        require(bytes(acknowledgmentTransactions[transactionId].transactionId).length == 0, "Transaction ID already exists");
+        // require(bytes(acknowledgmentTransactions[transactionId].transactionId).length == 0, "Transaction ID already exists");
         
         string memory status = string(abi.encodePacked(panel.metadata.status));
         address recycler = panel.recyclingCompany;
@@ -347,17 +305,18 @@ contract SolarPanel is ISolarPanelContract {
         account.balance -= amount;
 
         // Create description
-        string memory description = string(abi.encodePacked("Payment received for recycling panel ", panelId));
+        // string memory description = string(abi.encodePacked("Payment received for recycling panel ", panelId));
 
         // Store acknowledgment in mapping
-        acknowledgmentTransactions[transactionId] = AcknowledgeTransaction({
-            transactionId: transactionId,
-            panelId: panelId,
-            description: description,
-            prosumer: msg.sender,    // Here it is recycler.
-            amount: amount,
-            date: date
-        });
+        // Commented out as not required at this stage, not used, and not mentioned in paper.
+        // acknowledgmentTransactions[transactionId] = AcknowledgeTransaction({
+        //     transactionId: transactionId,
+        //     panelId: panelId,
+        //     description: description,
+        //     prosumer: msg.sender,    // Here it is recycler.
+        //     amount: amount,
+        //     date: date
+        // });
 
         panel.acknowledgeRecyclerFee = true;
     }
@@ -626,7 +585,7 @@ contract SolarPanel is ISolarPanelContract {
         merkleRootCounter++;
     }
 
-    function getEscrowTransactions() external override returns (
+    function getEscrowTransactions() external returns (
         uint balance, uint transactionCount, address[] memory activeContributors
     ){
         EscrowAccount storage account = escrowAccounts["escrow_account"];
